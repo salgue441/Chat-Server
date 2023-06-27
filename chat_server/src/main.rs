@@ -1,6 +1,15 @@
+/**
+ * @file main.rs
+ * @brief Main file for the chat server.
+ * @author Carlos Salguero
+ * @version 1.0
+ * @date 2023-06-26
+ *
+ * @copyright Copyright (c) - MIT License
+ */
 // Libraries
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
     sync::broadcast,
 };
@@ -9,6 +18,8 @@ use tokio::{
  * @brief
  * Main function of the program. Handles the connection to the client and
  * reads/writes to the socket.
+ * @details Uses the tokio library to handle the asynchronous nature of the
+ * program.
  */
 #[tokio::main]
 async fn main() {
@@ -33,6 +44,7 @@ async fn main() {
                             break;
                         }
 
+
                         tx.send((line.clone(), address)).unwrap();
                         line.clear();
                     }
@@ -40,7 +52,7 @@ async fn main() {
                     // If there is a message to send, send it to the client
                     result = rx.recv() => {
                         let (message, other_address) = result.unwrap();
-                        
+
                         if address != other_address {
                             writer.write_all(message.as_bytes()).await.unwrap();
                         }
