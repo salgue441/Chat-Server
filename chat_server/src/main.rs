@@ -13,10 +13,10 @@ use tokio::{
 #[tokio::main]
 async fn main() {
     let listener: TcpListener = TcpListener::bind("localhost:8080").await.unwrap();
-    let (tx, _rx) = broadcast::channel::<String>(10);
+    let (tx, _rx) = broadcast::channel(10);
 
     loop {
-        let (mut socket, _address) = listener.accept().await.unwrap();
+        let (mut socket, address) = listener.accept().await.unwrap();
 
         let tx = tx.clone();
         let mut rx = tx.subscribe();
@@ -27,19 +27,25 @@ async fn main() {
             let mut line = String::new();
 
             loop {
-                let bytes_read = reader.read_line(&mut line).await.unwrap();
+                tokio::select! {
+                    result = reader.read_line(&mut line) => {
+                        if result.unwrap() == 0 {
+                            break;
+                        }
 
-                // If no bytes are read,
-                // the client has closed the connection.
-                if bytes_read == 0 {
-                    break;
+                        tx.send((line.clone(), address)).unwrap();
+                        line.clear();
+                    }
+
+                    // If there is a message to send, send it to the client
+                    result = rx.recv() => {
+                        let (message, other_address) = result.unwrap();
+                        
+                        if address != other_address {
+                            writer.write_all(message.as_bytes()).await.unwrap();
+                        }
+                    }
                 }
-
-                tx.send(line.clone()).unwrap();
-                let message = rx.recv().await.unwrap();
-
-                writer.write_all(&message.as_bytes()).await.unwrap();
-                line.clear();
             }
         });
     }
